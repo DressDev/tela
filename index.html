@@ -54,6 +54,20 @@
             pointer-events: none; /* Deixa o clique passar para o card */
         }
 
+        /* Overlay Assistir (Autoplay bloqueado) */
+        .play-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 20;
+            cursor: pointer;
+        }
+
         .video-label {
             position: absolute;
             bottom: 0.5rem;
@@ -67,6 +81,7 @@
             backdrop-filter: blur(4px);
             z-index: 10;
             pointer-events: none;
+            transition: opacity 0.3s;
         }
 
         /* Botão Tela Cheia (Canto superior direito) */
@@ -81,25 +96,40 @@
             cursor: pointer;
             z-index: 20;
             opacity: 0;
-            transition: opacity 0.2s, background 0.2s;
+            transition: opacity 0.3s, background 0.2s;
             backdrop-filter: blur(4px);
         }
 
         .video-card:hover .btn-fullscreen { opacity: 1; }
         .btn-fullscreen:hover { background: rgba(59, 130, 246, 0.8); }
 
-        /* --- MODO FOCO (ESTILO DISCORD) --- */
+        /* Auto-hide in fullscreen when idle */
+        .video-card.ui-hidden { cursor: none; }
+        .video-card.ui-hidden .video-label,
+        .video-card.ui-hidden .btn-fullscreen { opacity: 0; pointer-events: none; }
+
+        /* --- MODO FOCO (ESTILO DISCORD) - Lateral Direita --- */
+        #video-grid.has-focus {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 180px;
+            grid-auto-rows: 120px;
+            gap: 1rem;
+            align-content: start;
+        }
+
         #video-grid.has-focus .video-card {
-            flex: 0 0 160px; /* Miniaturas embaixo/lado */
-            height: 120px;
-            order: 2;
-            cursor: pointer;
+            grid-column: 2;
+            height: 100%;
+            width: 100%;
+            flex: none; /* remove o flex nestes casos */
         }
 
         #video-grid.has-focus .video-card.focused {
-            flex: 1 1 100%; /* Vídeo principal expandido */
-            height: calc(100vh - 180px); /* Ocupa quase tudo */
-            order: 1;
+            grid-column: 1;
+            grid-row: 1 / 99; /* Expande através de várias linhas */
+            height: calc(100vh - 160px);
+            position: sticky;
+            top: 0;
             border-color: #3b82f6;
             box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);
             cursor: default;
@@ -107,9 +137,13 @@
 
         /* Ajustes Mobile */
         @media (max-width: 768px) {
+            #video-grid.has-focus {
+                display: flex;
+                flex-direction: column;
+            }
             .video-card { height: 220px; }
-            #video-grid.has-focus .video-card { flex: 0 0 110px; height: 85px; }
-            #video-grid.has-focus .video-card.focused { height: 50vh; }
+            #video-grid.has-focus .video-card { flex: 0 0 85px; height: 85px; order: 2; width: auto; }
+            #video-grid.has-focus .video-card.focused { flex: 1 1 100%; height: 50vh; order: 1; position: relative; }
             .btn-fullscreen { opacity: 1; /* Sempre visível no mobile */ }
         }
 
@@ -183,8 +217,20 @@
         <!-- ================= TELA DA SALA (VÍDEOS + CONTROLES) ================= -->
         <div id="screen-room" class="hidden absolute inset-0 z-20 flex flex-col bg-gray-950">
             
-            <!-- Área Principal: Grade de Vídeos -->
-            <div class="flex-grow overflow-y-auto p-4 flex items-center justify-center relative w-full">
+            <div class="flex flex-row flex-grow overflow-hidden w-full relative">
+                
+                <!-- Barra Lateral de Participantes (Esquerda) -->
+                <aside id="participants-sidebar" class="w-64 bg-gray-900 border-r border-gray-800 hidden sm:flex flex-col shrink-0">
+                    <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-300">Participantes (<span id="participant-count">1</span>)</h3>
+                    </div>
+                    <ul id="participant-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Itens adicionados dinamicamente -->
+                    </ul>
+                </aside>
+
+                <!-- Área Principal: Grade de Vídeos -->
+                <div class="flex-grow overflow-y-auto p-4 flex items-center justify-center relative w-full">
                 <!-- Mensagem Vazia -->
                 <div id="empty-room-msg" class="text-center text-gray-500 absolute pointer-events-none flex flex-col items-center">
                     <svg class="w-16 h-16 text-gray-800 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -193,7 +239,8 @@
 
                 <!-- O Grid Flexbox -->
                 <div id="video-grid"></div>
-            </div>
+                </div> <!-- Fim Área Principal -->
+            </div> <!-- Fim Container Sidebar + Principal -->
 
             <!-- Barra Inferior de Controles (Estilo Discord) -->
             <div class="shrink-0 h-20 sm:h-24 bg-gray-900 border-t border-gray-800 flex items-center justify-center gap-4 sm:gap-6 px-4 z-40">
@@ -316,8 +363,23 @@
         
         let lastBytesSent = 0;
         let lastBytesReceived = 0;
+        
+        let participantNames = {}; 
+        let myName = "Eu";
+        let fullscreenTimeout = null;
 
         const APP_PREFIX = 'P2P-MESH-V3-'; 
+
+        // Ao carregar a página verificar link direto
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            if (code) {
+                joinRoomIdInput.value = code;
+                setTimeout(() => joinRoom(), 500); // pequeno delay para UI renderizar
+            }
+            updateParticipantList();
+        });
 
         // --- ELEMENTOS DE UI ---
         const screenHome = document.getElementById('screen-home');
@@ -372,7 +434,8 @@
 
         function copyRoomId() {
             if(!myRoomId) return;
-            navigator.clipboard.writeText(myRoomId).then(() => {
+            const url = window.location.origin + window.location.pathname + "?code=" + myRoomId;
+            navigator.clipboard.writeText(url).then(() => {
                 headerRoomId.classList.replace('text-blue-400', 'text-green-400');
                 headerRoomId.classList.add('border-green-500');
                 setTimeout(() => { 
@@ -382,9 +445,66 @@
             }).catch(() => showAlert("Erro", "Copie manualmente."));
         }
 
+        // --- SISTEMA DE PARTICIPANTES ---
+        function updateParticipantList() {
+            const list = document.getElementById('participant-list');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            // Eu
+            const meLi = document.createElement('li');
+            meLi.className = "p-2 hover:bg-gray-800 rounded flex justify-between items-center text-sm transition";
+            meLi.innerHTML = `
+                <span class="flex items-center gap-2 text-gray-300 truncate">
+                <svg class="w-4 h-4 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"></circle></svg>
+                <span class="truncate font-medium">${myName}</span>
+                </span>
+                <button onclick="editMyName()" class="text-gray-500 hover:text-white p-1 rounded hover:bg-gray-700 transition" title="Editar Nome">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
+            `;
+            list.appendChild(meLi);
+
+            // Outros
+            Object.keys(dataConnections).forEach(peerId => {
+                const peerName = participantNames[peerId] || `Usuário ${peerId.replace(APP_PREFIX, '').substring(0,4)}`;
+                const li = document.createElement('li');
+                li.className = "p-2 rounded flex justify-between items-center text-sm";
+                li.innerHTML = `
+                    <span class="flex items-center gap-2 text-gray-400 truncate">
+                    <svg class="w-4 h-4 text-blue-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"></circle></svg>
+                    <span class="truncate">${peerName}</span>
+                    </span>
+                `;
+                list.appendChild(li);
+            });
+            
+            const countEl = document.getElementById('participant-count');
+            if (countEl) countEl.innerText = Object.keys(dataConnections).length + 1;
+        }
+
+        function editMyName() {
+            const newName = prompt("Digite seu nome:", myName);
+            if (newName && newName.trim() !== '') {
+                myName = newName.trim().substring(0, 20); // Limite de 20 chars
+                updateParticipantList();
+                broadcastName();
+                // Update próprio label se estiver transmitindo
+                const localLabel = document.querySelector(`#video-wrapper-local .video-label`);
+                if (localLabel) localLabel.innerText = myName + " (Você)";
+            }
+        }
+
+        function broadcastName() {
+            Object.values(dataConnections).forEach(conn => {
+                conn.send({ type: 'UPDATE_NAME', peerId: myPeerId, name: myName });
+            });
+        }
+
         function updateUIOnPeersChange() {
             const count = Object.keys(dataConnections).length + 1;
             statPeers.innerText = count;
+            updateParticipantList();
         }
 
         function checkGridEmpty() {
@@ -429,9 +549,25 @@
             video.playsInline = true;
             if (isLocal) video.muted = true;
 
+            const peerName = isLocal ? myName + " (Você)" : (participantNames[id] || `Usuário ${id.replace(APP_PREFIX, '').substring(0,4)}`);
+            
             const label = document.createElement('div');
             label.className = "video-label";
-            label.innerText = isLocal ? "Sua Transmissão" : `Usuário ${id.replace(APP_PREFIX, '').substring(0,4)}`;
+            label.innerText = peerName;
+
+            // Overlay para reprodução manual caso Autoplay falhe
+            const playOverlay = document.createElement('div');
+            playOverlay.className = "play-overlay hidden";
+            playOverlay.innerHTML = `
+                <svg class="w-12 h-12 text-blue-500 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span class="font-bold text-sm">Clique para Assistir</span>
+            `;
+            playOverlay.onclick = (e) => {
+                e.stopPropagation();
+                video.play().then(() => {
+                    playOverlay.classList.add('hidden');
+                }).catch(err => console.error("Erro ao dar play manual:", err));
+            };
 
             // Botão Tela Cheia (Nativo do S.O.)
             const fsBtn = document.createElement('button');
@@ -445,11 +581,13 @@
             // Interações
             card.addEventListener('click', (e) => {
                 // Se clicou no botão de tela cheia, não dispara o foco
-                if(e.target.closest('.btn-fullscreen')) {
-                    if (!document.fullscreenElement) {
-                        card.requestFullscreen().catch(err => console.error(err));
-                    } else {
-                        document.exitFullscreen();
+                if(e.target.closest('.btn-fullscreen') || e.target.closest('.play-overlay')) {
+                    if (e.target.closest('.btn-fullscreen')) {
+                        if (!document.fullscreenElement) {
+                            card.requestFullscreen().catch(err => console.error(err));
+                        } else {
+                            document.exitFullscreen();
+                        }
                     }
                     return;
                 }
@@ -459,8 +597,18 @@
             card.appendChild(video);
             card.appendChild(label);
             card.appendChild(fsBtn);
+            card.appendChild(playOverlay);
             videoGrid.appendChild(card);
             
+            // Tentativa de Autoplay
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn("Autoplay bloqueado pelo navegador.", error);
+                    playOverlay.classList.remove('hidden');
+                });
+            }
+
             checkGridEmpty();
         }
 
@@ -541,6 +689,10 @@
                     conn.send({ type: 'PEER_LIST', peers: peerList });
                 }
 
+                // Sincroniza nomes
+                conn.send({ type: 'UPDATE_NAME', peerId: myPeerId, name: myName });
+                conn.send({ type: 'REQUEST_NAMES' });
+
                 if (localStream) {
                     const call = myPeer.call(conn.peer, localStream);
                     myOutgoingCalls[conn.peer] = call;
@@ -550,16 +702,26 @@
             conn.on('data', (data) => {
                 if (data.type === 'PEER_LIST') {
                     data.peers.forEach(peerId => connectToPeer(peerId));
+                } else if (data.type === 'UPDATE_NAME') {
+                    participantNames[data.peerId] = data.name;
+                    updateParticipantList();
+                    // Atualiza a label do vídeo correspondente, se existir
+                    const label = document.querySelector(`#video-wrapper-${data.peerId} .video-label`);
+                    if (label) label.innerText = data.name;
+                } else if (data.type === 'REQUEST_NAMES') {
+                    conn.send({ type: 'UPDATE_NAME', peerId: myPeerId, name: myName });
                 }
             });
 
             conn.on('close', () => {
                 delete dataConnections[conn.peer];
+                delete participantNames[conn.peer];
                 updateUIOnPeersChange();
             });
 
             conn.on('error', () => {
                 delete dataConnections[conn.peer];
+                delete participantNames[conn.peer];
                 updateUIOnPeersChange();
             });
         }
@@ -756,6 +918,45 @@
         }
 
         window.addEventListener('beforeunload', endSession);
+
+        // --- OCULTAÇÃO UI EM FULLSCREEN ---
+        document.addEventListener('mousemove', () => {
+            if (document.fullscreenElement) {
+                const card = document.fullscreenElement;
+                if (card && card.classList.contains('video-card')) {
+                    card.classList.remove('ui-hidden');
+                    clearTimeout(fullscreenTimeout);
+                    fullscreenTimeout = setTimeout(() => {
+                        card.classList.add('ui-hidden');
+                    }, 3000);
+                }
+            }
+        });
+
+        // --- PAUSA DE VÍDEOS EM ABA OCULTA ---
+        document.addEventListener('visibilitychange', () => {
+            const isHidden = document.visibilityState === 'hidden';
+            document.querySelectorAll('.video-card video').forEach(video => {
+                if (!video.srcObject) return;
+                
+                // Evita pausar o vídeo local para não interromper envio no MediaStream em alguns navegadores
+                const card = video.parentElement;
+                const isLocal = card && card.id === 'video-wrapper-local';
+                
+                if (!isLocal) {
+                    if (isHidden) {
+                        video.pause();
+                    } else {
+                        // Tenta dar play, se falhar o playOverlay deve aparecer
+                        video.play().catch(e => {
+                            console.log('Autoplay bloqueado ao retornar:', e);
+                            const overlay = card.querySelector('.play-overlay');
+                            if (overlay) overlay.classList.remove('hidden');
+                        });
+                    }
+                }
+            });
+        });
 
     </script>
 </body>
