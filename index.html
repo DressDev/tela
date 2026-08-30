@@ -59,8 +59,19 @@
             opacity: 0.85;
             transition: opacity 0.2s;
         }
+        .card-video.camera-type {
+            object-fit: cover; /* Câmera: cobre o card para mostrar o rosto sem barras */
+        }
         .card-video:hover, .group:hover .card-video {
             opacity: 1;
+        }
+
+        /* Vídeo principal: câmera usa cover, tela usa contain */
+        #focused-video.camera-type {
+            object-fit: cover;
+        }
+        #focused-video.screen-type {
+            object-fit: contain;
         }
 
         .video-card-bg {
@@ -123,6 +134,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* Sem borda/arredondamento no vídeo focado em tela cheia */
+        .fullscreen-container:fullscreen #focused-video-wrapper,
+        .fullscreen-container:-webkit-full-screen #focused-video-wrapper {
+            border-radius: 0 !important;
+            border: none !important;
+            background: #000 !important;
         }
 
         /* Ocultar UI quando mouse estiver inativo em tela cheia */
@@ -243,9 +262,9 @@
         <div id="screen-room" class="hidden absolute inset-0 z-20 flex w-full h-full">
 
             <!-- Palco Principal (Vídeo em Foco) -->
-            <div id="main-stage" class="flex-1 relative flex flex-col">
+            <div id="main-stage" class="flex-1 min-w-0 flex flex-col">
                 <div id="focused-container"
-                    class="flex-1 relative flex items-center justify-center p-2 sm:p-4 bg-black overflow-hidden fullscreen-container">
+                    class="flex-1 relative flex items-center justify-center bg-black overflow-hidden fullscreen-container">
 
                     <!-- Mensagem Vazia / Dica -->
                     <div id="empty-stage-msg" class="text-center text-gray-500 flex flex-col items-center select-none">
@@ -335,6 +354,22 @@
                     <!-- Separador -->
                     <div class="w-px h-10 bg-gray-800 mx-2"></div>
 
+                    <!-- Botão Virar Câmera (aparece só quando câmera está ativa) -->
+                    <button id="btn-flip-camera" onclick="flipCamera()"
+                        class="hidden flex-col items-center gap-1 group">
+                        <div
+                            class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-800 hover:bg-teal-600 border border-gray-700 hover:border-teal-500 flex items-center justify-center transition-all shadow-lg text-gray-400 hover:text-white">
+                            <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                        <span class="text-[10px] sm:text-xs font-medium text-teal-400">Virar</span>
+                    </button>
+
+                    <!-- Separador -->
+                    <div class="w-px h-10 bg-gray-800 mx-2"></div>
+
                     <!-- Botão Sair -->
                     <button onclick="endSession()" class="flex flex-col items-center gap-1 group">
                         <div
@@ -350,13 +385,14 @@
                 </div>
             </div>
 
-            <!-- Backdrop Mobile para Sidebar -->
+            <!-- Backdrop Mobile para Sidebar (overlay apenas no mobile) -->
             <div id="sidebar-backdrop" onclick="toggleSidebar()"
-                class="fixed inset-0 bg-black/60 z-30 hidden md:hidden backdrop-blur-sm transition-opacity"></div>
+                class="fixed inset-0 bg-black/60 z-30 hidden backdrop-blur-sm transition-opacity"></div>
 
             <!-- Menu Lateral (Sidebar) com Cards -->
+            <!-- No desktop: elemento flex normal que empurra o conteúdo. No mobile: overlay absoluto. -->
             <div id="sidebar"
-                class="absolute right-0 top-0 h-full w-72 sm:w-80 bg-gray-900 border-l border-gray-800 z-40 transform translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+                class="shrink-0 w-72 sm:w-80 bg-gray-900 border-l border-gray-800 z-40 flex flex-col shadow-2xl transition-all duration-300 overflow-hidden">
                 <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 shrink-0">
                     <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Participantes</h2>
                     <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white">
@@ -368,7 +404,7 @@
                 </div>
 
                 <!-- Lista de Cards -->
-                <div id="cards-container" class="flex-1 overflow-y-auto p-3 space-y-3 pb-24 md:pb-4">
+                <div id="cards-container" class="flex-1 overflow-y-auto p-3 space-y-3">
                     <!-- Cards injetados via JS -->
                 </div>
             </div>
@@ -419,6 +455,7 @@
 
         // Streams Locais Ativos
         let localStreams = { camera: null, screen: null };
+        let currentCameraFacing = 'user'; // 'user' (frontal) ou 'environment' (traseira)
 
         // Conexões P2P (Malha)
         let dataConnections = {};
@@ -546,17 +583,34 @@
         function updateSidebarUI() {
             const isMobile = window.innerWidth < 768;
             if (isSidebarOpen) {
-                sidebar.classList.remove('translate-x-full');
                 if (isMobile) {
+                    // Mobile: overlay absoluto
+                    sidebar.style.width = '';
+                    sidebar.style.maxWidth = '';
+                    sidebar.classList.add('absolute', 'right-0', 'top-0', 'h-full', 'z-40');
+                    sidebar.style.transform = 'translateX(0)';
                     sidebarBackdrop.classList.remove('hidden');
                     setTimeout(() => sidebarBackdrop.classList.remove('opacity-0'), 10);
                 } else {
+                    // Desktop: empurra conteúdo
+                    sidebar.classList.remove('absolute', 'right-0', 'top-0', 'h-full', 'z-40');
+                    sidebar.style.transform = '';
+                    sidebar.style.width = '20rem'; // w-80
+                    sidebar.style.maxWidth = '20rem';
                     sidebarBackdrop.classList.add('hidden');
                 }
             } else {
-                sidebar.classList.add('translate-x-full');
-                sidebarBackdrop.classList.add('opacity-0');
-                setTimeout(() => sidebarBackdrop.classList.add('hidden'), 300);
+                if (isMobile) {
+                    sidebar.style.transform = 'translateX(100%)';
+                    sidebarBackdrop.classList.add('opacity-0');
+                    setTimeout(() => sidebarBackdrop.classList.add('hidden'), 300);
+                } else {
+                    sidebar.classList.remove('absolute', 'right-0', 'top-0', 'h-full', 'z-40');
+                    sidebar.style.transform = '';
+                    sidebar.style.width = '0';
+                    sidebar.style.maxWidth = '0';
+                    sidebarBackdrop.classList.add('hidden');
+                }
             }
         }
 
@@ -604,8 +658,12 @@
                         participants[call.peer].streams[type] = remoteStream;
                         renderCards();
 
-                        // Auto-foco se o palco estiver vazio
-                        if (!focusedParticipantId) setFocus(call.peer, type);
+                        // Sempre traz para o primeiro plano quando alguém liga a câmera ou compartilha tela
+                        // (tela compartilhada tem prioridade sobre câmera já focada)
+                        if (type === 'screen' || !focusedParticipantId ||
+                            focusedStreamType !== 'screen') {
+                            setFocus(call.peer, type);
+                        }
 
                         // Economia de recurso: pausa stream de tela remota após 10s
                         if (type === 'screen') {
@@ -768,14 +826,17 @@
                         } else throw e;
                     }
                 } else if (type === 'camera') {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: currentCameraFacing },
+                        audio: true
+                    });
                 }
 
                 localStreams[type] = stream;
                 participants[myPeerId].streams[type] = stream;
 
                 stream.getTracks().forEach(track => {
-                    track.onended = () => stopMediaShare(type); // Ouve parada nativa
+                    track.onended = () => stopMediaShare(type);
                 });
 
                 // Notifica Peers
@@ -784,16 +845,32 @@
                 });
 
                 updateMediaButtonUI(type, true);
+
+                // Exibe botão de virar câmera se câmera ativa
+                if (type === 'camera') {
+                    document.getElementById('btn-flip-camera').classList.remove('hidden');
+                    document.getElementById('btn-flip-camera').classList.add('flex');
+                }
+
                 renderCards();
 
-                // Economia de recursos: Pausa o vídeo LOCAL após 8 segundos (como Discord/Meet)
-                clearTimeout(resourcePauseTimers[type]);
-                resourcePauseTimers[type] = setTimeout(() => {
-                    applyResourceSaving(myPeerId, type);
-                }, 8000);
+                // Atualiza object-fit do vídeo focado conforme tipo
+                updateFocusedVideoFit();
 
-                // Focar no próprio vídeo se palco estiver vazio
-                if (!focusedParticipantId) setFocus(myPeerId, type);
+                // Economia de recursos: Só pausa compartilhamento de TELA após 8s
+                if (type === 'screen') {
+                    clearTimeout(resourcePauseTimers.screen);
+                    resourcePauseTimers.screen = setTimeout(() => {
+                        applyResourceSaving(myPeerId, 'screen');
+                    }, 8000);
+                }
+
+                // Sempre traz para o primeiro plano ao iniciar compartilhamento
+                // (tela compartilhada tem prioridade; câmera só toma o foco se não houver tela)
+                if (type === 'screen' || !focusedParticipantId ||
+                    focusedStreamType !== 'screen') {
+                    setFocus(myPeerId, type);
+                }
 
             } catch (err) {
                 if (err.name !== "NotAllowedError" && err.name !== "NotFoundError") {
@@ -814,6 +891,13 @@
             }
             if (participants[myPeerId]) {
                 participants[myPeerId].streams[type] = null;
+            }
+
+            // Esconde botão de virar câmera se câmera parou
+            if (type === 'camera') {
+                const btnFlip = document.getElementById('btn-flip-camera');
+                btnFlip.classList.add('hidden');
+                btnFlip.classList.remove('flex');
             }
 
             // Encerra chamadas
@@ -839,17 +923,67 @@
             const label = document.getElementById(`label-${type}`);
 
             if (isActive) {
-                // Ativo: Cor verde/roxa, ícone muda ou indica stop
                 btnBg.className = `w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-lg text-white ${type === 'screen' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'}`;
                 label.innerText = type === 'screen' ? "Parar Tela" : "Parar Câmera";
                 label.classList.replace('text-gray-400', type === 'screen' ? 'text-blue-400' : 'text-purple-400');
             } else {
-                // Inativo: Cinza padrão
                 btnBg.className = "w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-700 flex items-center justify-center transition-all shadow-lg text-gray-400 hover:text-white";
                 label.innerText = type === 'screen' ? "Tela" : "Câmera";
                 label.classList.remove('text-blue-400', 'text-purple-400');
                 label.classList.add('text-gray-400');
             }
+        }
+
+        // Virar câmera (frontal <-> traseira)
+        async function flipCamera() {
+            if (!localStreams.camera) return;
+            currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: currentCameraFacing },
+                    audio: true
+                });
+
+                // Para tracks antigos
+                localStreams.camera.getTracks().forEach(t => t.stop());
+
+                localStreams.camera = newStream;
+                participants[myPeerId].streams.camera = newStream;
+
+                // Atualiza todos os peers com o novo stream
+                Object.keys(dataConnections).forEach(peerId => {
+                    // Fecha chamada antiga
+                    const key = `${peerId}_camera`;
+                    if (outgoingCalls[key]) {
+                        outgoingCalls[key].close();
+                        delete outgoingCalls[key];
+                    }
+                    sendMediaToPeer(peerId, newStream, 'camera');
+                });
+
+                // Atualiza o vídeo focado se for a câmera local
+                if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
+                    focusedVideo.srcObject = newStream;
+                    playVideoSafe(focusedVideo, focusedVideoWrapper);
+                }
+
+                newStream.getTracks().forEach(track => {
+                    track.onended = () => stopMediaShare('camera');
+                });
+
+                renderCards();
+            } catch (err) {
+                // Volta para a facing anterior em caso de erro
+                currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
+                showAlert('Erro', 'Não foi possível trocar a câmera.');
+            }
+        }
+
+        // Atualiza object-fit do vídeo focado conforme o tipo de stream
+        function updateFocusedVideoFit() {
+            if (!focusedStreamType) return;
+            focusedVideo.classList.remove('camera-type', 'screen-type');
+            focusedVideo.classList.add(focusedStreamType === 'camera' ? 'camera-type' : 'screen-type');
         }
 
         // --- RENDERIZAÇÃO DE CARDS (SIDEBAR) ---
@@ -890,7 +1024,8 @@
                 vid.autoplay = true;
                 vid.playsInline = true;
                 vid.muted = true;
-                vid.className = 'card-video';
+                // Adiciona classe de tipo para object-fit correto
+                vid.className = 'card-video' + (type === 'camera' ? ' camera-type' : '');
                 vid.dataset.peerId = id;
                 vid.dataset.streamType = type;
 
@@ -998,6 +1133,10 @@
 
             const stream = participants[peerId].streams[type];
             focusedVideo.srcObject = stream;
+
+            // Ajusta object-fit: câmera = cover (maximiza visibilidade), tela = contain (sem cortes)
+            focusedVideo.classList.remove('camera-type', 'screen-type');
+            focusedVideo.classList.add(type === 'camera' ? 'camera-type' : 'screen-type');
 
             // Só ativa o áudio da main track se não for local
             focusedVideo.muted = participants[peerId].isLocal;
