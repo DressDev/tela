@@ -41,27 +41,24 @@
             }
         }
 
-        /* Vídeos sempre contidos para evitar imagens cortadas */
+        /* Vídeos globais: sempre usar contain para NUNCA cortar a imagem */
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Garante que nunca seja cortado */
+            object-fit: contain !important;
             background-color: #000;
         }
 
+        /* Estilização específica para os vídeos dentro dos cards laterais */
         .card-video {
-        .card-video.camera-type {
-            object-fit: cover; /* Câmera: cobre o card para mostrar o rosto sem barras */
+            position: absolute;
+            inset: 0;
+            opacity: 0.85;
+            transition: opacity 0.2s;
         }
+        
         .card-video:hover, .group:hover .card-video {
             opacity: 1;
-        }
-
-        /* Vídeo principal: sempre usar contain para NUNCA cortar a imagem (nem câmera, nem tela) */
-        #focused-video,
-        #focused-video.camera-type,
-        #focused-video.screen-type {
-            object-fit: contain !important;
         }
 
         .video-card-bg {
