@@ -41,37 +41,27 @@
             }
         }
 
+        /* Vídeos sempre contidos para evitar imagens cortadas */
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: contain; /* Garante que nunca seja cortado */
             background-color: #000;
         }
 
-        /* Vídeo nos cards: contido para não cortar */
         .card-video {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: contain; /* Ajustado para não cortar a imagem no card */
             background: #000;
             opacity: 0.85;
             transition: opacity 0.2s;
         }
-        .card-video.camera-type {
-            object-fit: cover; /* Câmera: cobre o card para mostrar o rosto sem barras */
-        }
+
         .card-video:hover, .group:hover .card-video {
             opacity: 1;
-        }
-
-        /* Vídeo principal: câmera usa cover, tela usa contain */
-        #focused-video.camera-type {
-            object-fit: cover;
-        }
-        #focused-video.screen-type {
-            object-fit: contain;
         }
 
         .video-card-bg {
@@ -136,7 +126,6 @@
             justify-content: center;
         }
 
-        /* Sem borda/arredondamento no vídeo focado em tela cheia */
         .fullscreen-container:fullscreen #focused-video-wrapper,
         .fullscreen-container:-webkit-full-screen #focused-video-wrapper {
             border-radius: 0 !important;
@@ -144,7 +133,6 @@
             background: #000 !important;
         }
 
-        /* Ocultar UI quando mouse estiver inativo em tela cheia */
         .idle-hide .auto-hide-ui {
             opacity: 0 !important;
             pointer-events: none;
@@ -157,17 +145,13 @@
         .transition-opacity {
             transition: opacity 0.3s ease;
         }
-
-        .transition-transform {
-            transition: transform 0.3s ease;
-        }
     </style>
 </head>
 
 <body
     class="bg-gray-950 text-gray-100 font-sans h-[100dvh] flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white">
 
-    <!-- Cabeçalho (Sempre Visível) -->
+    <!-- Cabeçalho -->
     <header
         class="bg-gray-900 border-b border-gray-800 p-3 sm:p-4 shrink-0 z-50 relative flex justify-between items-center pl-4 sm:pl-8">
         <div class="flex items-center gap-3">
@@ -196,7 +180,6 @@
             </div>
         </div>
 
-        <!-- Botão Menu Lateral -->
         <button id="btn-toggle-sidebar" onclick="toggleSidebar()"
             class="hidden p-2 rounded-lg bg-gray-800 border border-gray-700 hover:bg-gray-700 text-gray-300 transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +192,6 @@
     <!-- Área Principal -->
     <main class="flex-grow flex relative overflow-hidden bg-black">
 
-        <!-- ================= TELA INICIAL ================= -->
         <div id="screen-home"
             class="absolute inset-0 z-30 bg-gray-950 overflow-y-auto fade-in flex items-center justify-center p-4">
             <div class="max-w-2xl w-full text-center space-y-8 py-8">
@@ -258,10 +240,7 @@
             </div>
         </div>
 
-        <!-- ================= TELA DA SALA ================= -->
         <div id="screen-room" class="hidden absolute inset-0 z-20 flex w-full h-full">
-
-            <!-- Palco Principal (Vídeo em Foco) -->
             <div id="main-stage" class="flex-1 min-w-0 flex flex-col">
                 <div id="focused-container"
                     class="flex-1 relative flex items-center justify-center bg-black overflow-hidden fullscreen-container">
@@ -281,7 +260,6 @@
                         class="hidden w-full h-full relative group rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
                         <video id="focused-video" playsinline></video>
 
-                        <!-- Overlay Pausado (Economia de recursos local) -->
                         <div id="focused-paused-overlay"
                             class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
                             <svg class="w-12 h-12 text-blue-500 mb-2" fill="none" stroke="currentColor"
@@ -294,7 +272,6 @@
                                 recursos.</p>
                         </div>
 
-                        <!-- Info e Controles Auto-Hide -->
                         <div
                             class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 auto-hide-ui transition-opacity opacity-100 group-hover:opacity-100 sm:opacity-0 pointer-events-none">
                             <span id="focused-name" class="text-white font-medium text-sm">Nome</span>
@@ -317,7 +294,6 @@
                     </div>
                 </div>
 
-                <!-- Barra Inferior de Controles -->
                 <div
                     class="shrink-0 h-20 sm:h-24 bg-gray-900 border-t border-gray-800 flex items-center justify-center gap-4 sm:gap-6 px-4 z-30">
 
@@ -351,10 +327,10 @@
                         <span id="label-screen" class="text-[10px] sm:text-xs font-medium text-gray-400">Tela</span>
                     </button>
 
-                    <!-- Separador -->
+                    <!-- Separador Principal (Entre Tela e próximos botões) -->
                     <div class="w-px h-10 bg-gray-800 mx-2"></div>
 
-                    <!-- Botão Virar Câmera (aparece só quando câmera está ativa) -->
+                    <!-- Botão Virar Câmera -->
                     <button id="btn-flip-camera" onclick="flipCamera()"
                         class="hidden flex-col items-center gap-1 group">
                         <div
@@ -367,8 +343,8 @@
                         <span class="text-[10px] sm:text-xs font-medium text-teal-400">Virar</span>
                     </button>
 
-                    <!-- Separador -->
-                    <div class="w-px h-10 bg-gray-800 mx-2"></div>
+                    <!-- Separador secundário: só aparece se o botão virar câmera aparecer -->
+                    <div id="separator-flip" class="hidden w-px h-10 bg-gray-800 mx-2"></div>
 
                     <!-- Botão Sair -->
                     <button onclick="endSession()" class="flex flex-col items-center gap-1 group">
@@ -385,12 +361,10 @@
                 </div>
             </div>
 
-            <!-- Backdrop Mobile para Sidebar (overlay apenas no mobile) -->
+            <!-- Backdrop Mobile para Sidebar -->
             <div id="sidebar-backdrop" onclick="toggleSidebar()"
                 class="fixed inset-0 bg-black/60 z-30 hidden backdrop-blur-sm transition-opacity"></div>
 
-            <!-- Menu Lateral (Sidebar) com Cards -->
-            <!-- No desktop: elemento flex normal que empurra o conteúdo. No mobile: overlay absoluto. -->
             <div id="sidebar"
                 class="shrink-0 w-72 sm:w-80 bg-gray-900 border-l border-gray-800 z-40 flex flex-col shadow-2xl transition-all duration-300 overflow-hidden">
                 <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 shrink-0">
@@ -403,7 +377,6 @@
                     </button>
                 </div>
 
-                <!-- Lista de Cards -->
                 <div id="cards-container" class="flex-1 overflow-y-auto p-3 space-y-3">
                     <!-- Cards injetados via JS -->
                 </div>
@@ -442,36 +415,23 @@
     </div>
 
     <script>
-        // --- ESTADO DA APLICAÇÃO ---
         const APP_PREFIX = 'DT-ROOM-';
         let myPeer = null;
         let myRoomId = null;
         let myPeerId = null;
-
         let localName = "Visitante";
-
-        // Estrutura de dados dos participantes: peerId -> { name, isLocal, streams: { camera: Stream, screen: Stream } }
         let participants = {};
-
-        // Streams Locais Ativos
         let localStreams = { camera: null, screen: null };
-        let currentCameraFacing = 'user'; // 'user' (frontal) ou 'environment' (traseira)
-
-        // Conexões P2P (Malha)
+        let currentCameraFacing = 'user';
         let dataConnections = {};
-        let outgoingCalls = {}; // peerId_type -> MediaConnection
-
+        let outgoingCalls = {};
         let focusedParticipantId = null;
-        let focusedStreamType = null; // 'camera' ou 'screen'
-
-        // Controles de UI
-        let isSidebarOpen = true; // Aberto por padrão
+        let focusedStreamType = null;
+        let isSidebarOpen = true;
         let idleTimer = null;
         let resourcePauseTimers = { camera: null, screen: null };
-        // Mapa de timers de pausa para streams remotas (economia de recurso para quem assiste)
-        let remoteResourceTimers = {}; // peerId_type -> timer
+        let remoteResourceTimers = {};
 
-        // Elementos UI
         const screenHome = document.getElementById('screen-home');
         const screenRoom = document.getElementById('screen-room');
         const joinRoomIdInput = document.getElementById('join-room-id');
@@ -481,7 +441,6 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
         const cardsContainer = document.getElementById('cards-container');
-
         const mainStageWrapper = document.getElementById('focused-container');
         const focusedVideoWrapper = document.getElementById('focused-video-wrapper');
         const focusedVideo = document.getElementById('focused-video');
@@ -489,7 +448,6 @@
         const focusedName = document.getElementById('focused-name');
         const focusedPausedOverlay = document.getElementById('focused-paused-overlay');
 
-        // Inicialização
         window.addEventListener('load', () => {
             const params = new URLSearchParams(window.location.search);
             const roomCode = params.get('room');
@@ -500,7 +458,6 @@
             updateSidebarUI();
         });
 
-        // Formatação do Input
         joinRoomIdInput.addEventListener('input', function (e) {
             let val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
             if (val.length > 3) val = val.substring(0, 3) + '-' + val.substring(3, 6);
@@ -531,7 +488,6 @@
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
-        // Renomear
         function openNameModal() {
             document.getElementById('input-edit-name').value = localName;
             const modal = document.getElementById('name-modal');
@@ -555,7 +511,6 @@
             closeNameModal();
         }
 
-        // Link da Sala
         function getRoomLink() {
             return `${window.location.origin}${window.location.pathname}?room=${myRoomId}`;
         }
@@ -574,7 +529,6 @@
             }).catch(() => showAlert("Erro", "Não foi possível copiar o link."));
         }
 
-        // Sidebar Mobile Toggle
         function toggleSidebar() {
             isSidebarOpen = !isSidebarOpen;
             updateSidebarUI();
@@ -584,7 +538,6 @@
             const isMobile = window.innerWidth < 768;
             if (isSidebarOpen) {
                 if (isMobile) {
-                    // Mobile: overlay absoluto
                     sidebar.style.width = '';
                     sidebar.style.maxWidth = '';
                     sidebar.classList.add('absolute', 'right-0', 'top-0', 'h-full', 'z-40');
@@ -592,10 +545,9 @@
                     sidebarBackdrop.classList.remove('hidden');
                     setTimeout(() => sidebarBackdrop.classList.remove('opacity-0'), 10);
                 } else {
-                    // Desktop: empurra conteúdo
                     sidebar.classList.remove('absolute', 'right-0', 'top-0', 'h-full', 'z-40');
                     sidebar.style.transform = '';
-                    sidebar.style.width = '20rem'; // w-80
+                    sidebar.style.width = '20rem';
                     sidebar.style.maxWidth = '20rem';
                     sidebarBackdrop.classList.add('hidden');
                 }
@@ -618,7 +570,6 @@
             updateSidebarUI();
         });
 
-        // --- PEER JS E MALHA P2P ---
         async function startPeerJS(requestedId = null) {
             return new Promise((resolve, reject) => {
                 const opts = {
@@ -634,7 +585,6 @@
 
                 myPeer.on('open', (id) => {
                     myPeerId = id;
-                    // Registra participante local
                     participants[myPeerId] = { name: localName, isLocal: true, streams: { camera: null, screen: null } };
                     resolve(id);
                 });
@@ -650,7 +600,6 @@
                     call.answer();
 
                     call.on('stream', (remoteStream) => {
-                        // Verifica qual tipo de stream é pelo metadata
                         const type = call.metadata?.type || 'camera';
                         if (!participants[call.peer]) {
                             participants[call.peer] = { name: `Usuário ${call.peer.substring(call.peer.length - 4)}`, isLocal: false, streams: { camera: null, screen: null } };
@@ -658,14 +607,10 @@
                         participants[call.peer].streams[type] = remoteStream;
                         renderCards();
 
-                        // Sempre traz para o primeiro plano quando alguém liga a câmera ou compartilha tela
-                        // (tela compartilhada tem prioridade sobre câmera já focada)
-                        if (type === 'screen' || !focusedParticipantId ||
-                            focusedStreamType !== 'screen') {
+                        if (type === 'screen' || !focusedParticipantId || focusedStreamType !== 'screen') {
                             setFocus(call.peer, type);
                         }
 
-                        // Economia de recurso: pausa stream de tela remota após 10s
                         if (type === 'screen') {
                             const timerKey = `${call.peer}_${type}`;
                             clearTimeout(remoteResourceTimers[timerKey]);
@@ -698,16 +643,13 @@
         function setupDataConnection(conn) {
             conn.on('open', () => {
                 dataConnections[conn.peer] = conn;
-                // Inicializa registro se não houver
                 if (!participants[conn.peer]) {
                     participants[conn.peer] = { name: `Usuário ${conn.peer.substring(conn.peer.length - 4)}`, isLocal: false, streams: { camera: null, screen: null } };
                 }
 
-                // Envia lista de peers conhecidos e meu nome
                 conn.send({ type: 'PEER_LIST', peers: Object.keys(dataConnections) });
                 conn.send({ type: 'RENAME', name: localName });
 
-                // Se eu já estiver compartilhando algo, ligo pra ele
                 if (localStreams.camera) sendMediaToPeer(conn.peer, localStreams.camera, 'camera');
                 if (localStreams.screen) sendMediaToPeer(conn.peer, localStreams.screen, 'screen');
 
@@ -755,7 +697,6 @@
             }
         }
 
-        // --- AÇÕES DA SALA ---
         async function createRoom() {
             myRoomId = generateShortId();
             const fullId = APP_PREFIX + myRoomId;
@@ -802,7 +743,6 @@
             renderCards();
         }
 
-        // --- COMPARTILHAMENTO DE MÍDIA ---
         async function toggleMedia(type) {
             if (localStreams[type]) {
                 stopMediaShare(type);
@@ -822,7 +762,7 @@
                         stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     } catch (e) {
                         if (e.name === 'InvalidAccessError' || e.name === 'NotSupportedError') {
-                            stream = await navigator.mediaDevices.getDisplayMedia({ video: true }); // Tenta sem áudio (Mobile)
+                            stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                         } else throw e;
                     }
                 } else if (type === 'camera') {
@@ -839,25 +779,21 @@
                     track.onended = () => stopMediaShare(type);
                 });
 
-                // Notifica Peers
                 Object.keys(dataConnections).forEach(peerId => {
                     sendMediaToPeer(peerId, stream, type);
                 });
 
                 updateMediaButtonUI(type, true);
 
-                // Exibe botão de virar câmera se câmera ativa
+                // Mostrando Botão de Virar Câmera e o Separador
                 if (type === 'camera') {
                     document.getElementById('btn-flip-camera').classList.remove('hidden');
                     document.getElementById('btn-flip-camera').classList.add('flex');
+                    document.getElementById('separator-flip').classList.remove('hidden');
                 }
 
                 renderCards();
 
-                // Atualiza object-fit do vídeo focado conforme tipo
-                updateFocusedVideoFit();
-
-                // Economia de recursos: Só pausa compartilhamento de TELA após 8s
                 if (type === 'screen') {
                     clearTimeout(resourcePauseTimers.screen);
                     resourcePauseTimers.screen = setTimeout(() => {
@@ -865,10 +801,7 @@
                     }, 8000);
                 }
 
-                // Sempre traz para o primeiro plano ao iniciar compartilhamento
-                // (tela compartilhada tem prioridade; câmera só toma o foco se não houver tela)
-                if (type === 'screen' || !focusedParticipantId ||
-                    focusedStreamType !== 'screen') {
+                if (type === 'screen' || !focusedParticipantId || focusedStreamType !== 'screen') {
                     setFocus(myPeerId, type);
                 }
 
@@ -893,14 +826,14 @@
                 participants[myPeerId].streams[type] = null;
             }
 
-            // Esconde botão de virar câmera se câmera parou
+            // Ocultando Botão de Virar Câmera e o Separador para fixar o layout
             if (type === 'camera') {
                 const btnFlip = document.getElementById('btn-flip-camera');
                 btnFlip.classList.add('hidden');
                 btnFlip.classList.remove('flex');
+                document.getElementById('separator-flip').classList.add('hidden');
             }
 
-            // Encerra chamadas
             Object.keys(outgoingCalls).forEach(key => {
                 if (key.endsWith(`_${type}`)) {
                     outgoingCalls[key].close();
@@ -934,7 +867,6 @@
             }
         }
 
-        // Virar câmera (frontal <-> traseira)
         async function flipCamera() {
             if (!localStreams.camera) return;
             currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
@@ -944,15 +876,12 @@
                     audio: true
                 });
 
-                // Para tracks antigos
                 localStreams.camera.getTracks().forEach(t => t.stop());
 
                 localStreams.camera = newStream;
                 participants[myPeerId].streams.camera = newStream;
 
-                // Atualiza todos os peers com o novo stream
                 Object.keys(dataConnections).forEach(peerId => {
-                    // Fecha chamada antiga
                     const key = `${peerId}_camera`;
                     if (outgoingCalls[key]) {
                         outgoingCalls[key].close();
@@ -961,7 +890,6 @@
                     sendMediaToPeer(peerId, newStream, 'camera');
                 });
 
-                // Atualiza o vídeo focado se for a câmera local
                 if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
                     focusedVideo.srcObject = newStream;
                     playVideoSafe(focusedVideo, focusedVideoWrapper);
@@ -973,20 +901,11 @@
 
                 renderCards();
             } catch (err) {
-                // Volta para a facing anterior em caso de erro
                 currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
                 showAlert('Erro', 'Não foi possível trocar a câmera.');
             }
         }
 
-        // Atualiza object-fit do vídeo focado conforme o tipo de stream
-        function updateFocusedVideoFit() {
-            if (!focusedStreamType) return;
-            focusedVideo.classList.remove('camera-type', 'screen-type');
-            focusedVideo.classList.add(focusedStreamType === 'camera' ? 'camera-type' : 'screen-type');
-        }
-
-        // --- RENDERIZAÇÃO DE CARDS (SIDEBAR) ---
         function renderCards() {
             cardsContainer.innerHTML = '';
 
@@ -1003,7 +922,6 @@
                     cardsContainer.appendChild(createCard(id, p, 'screen'));
                 }
 
-                // Se não tem nenhuma mídia, exibe um card de "Ouvinte/Aguardando"
                 if (!hasMedia) {
                     cardsContainer.appendChild(createCard(id, p, 'none'));
                 }
@@ -1024,17 +942,14 @@
                 vid.autoplay = true;
                 vid.playsInline = true;
                 vid.muted = true;
-                // Adiciona classe de tipo para object-fit correto
+                // Classes mantidas para facilitar identificação visual futura se necessário, mas as diretivas de crop no css foram retiradas
                 vid.className = 'card-video' + (type === 'camera' ? ' camera-type' : '');
                 vid.dataset.peerId = id;
                 vid.dataset.streamType = type;
 
-                // Evitar autoplay block
                 playVideoSafe(vid, card);
-
                 card.appendChild(vid);
 
-                // Economia de recurso remoto: pausa card de quem está compartilhando tela após 10s
                 if (!peerData.isLocal && type === 'screen') {
                     const timerKey = `${id}_${type}`;
                     clearTimeout(remoteResourceTimers[timerKey]);
@@ -1043,14 +958,12 @@
                     }, 10000);
                 }
             } else {
-                // Placeholder se sem vídeo
                 const placeholder = document.createElement('div');
                 placeholder.className = "absolute inset-0 flex items-center justify-center bg-gray-900";
                 placeholder.innerHTML = `<div class="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-gray-500 font-bold text-lg border border-gray-700">${peerData.name.charAt(0).toUpperCase()}</div>`;
                 card.appendChild(placeholder);
             }
 
-            // Label do Nome e Tipo
             const labelContainer = document.createElement('div');
             labelContainer.className = "absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent flex justify-between items-end z-10 pointer-events-none";
 
@@ -1060,7 +973,6 @@
 
             let nameHTML = `<span class="text-xs font-bold text-white truncate drop-shadow-md flex items-center gap-1">${typeIcon} ${peerData.name} ${peerData.isLocal ? '(Você)' : ''}</span>`;
 
-            // Botão de editar nome para o usuário local
             if (peerData.isLocal && type === 'none' || (peerData.isLocal && type !== 'none' && !cardHasEdit(id))) {
                 nameHTML += `<button onclick="event.stopPropagation(); openNameModal()" class="pointer-events-auto ml-1 text-gray-400 hover:text-white bg-black/50 p-1 rounded transition"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>`;
             }
@@ -1072,17 +984,13 @@
         }
 
         function cardHasEdit(id) {
-            // Apenas um pequeno helper para não duplicar botão de edição visualmente, 
-            // mas cada card local pode ter o botão sem problemas.
             return false;
         }
 
-        // Mitigação de Autoplay (Com botão de Assistir)
         async function playVideoSafe(videoEl, containerEl) {
             try {
                 await videoEl.play();
             } catch (err) {
-                // Autoplay block detectado — exibe botão "Assistir"
                 const btn = document.createElement('button');
                 btn.innerHTML = `<svg style="width:16px;height:16px;flex-shrink:0" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg><span>Assistir</span>`;
                 btn.className = 'play-overlay-btn';
@@ -1095,15 +1003,12 @@
             }
         }
 
-        // Pausa vídeo de um card específico (economia de recurso remoto)
         function pauseCardVideo(peerId, type) {
-            // Encontra o vídeo no card correspondente
             const allVideos = cardsContainer.querySelectorAll('video');
             allVideos.forEach(v => {
                 if (v.dataset.peerId === peerId && v.dataset.streamType === type) {
                     if (!v.paused) {
                         v.pause();
-                        // Adiciona overlay de pausa no card
                         const cardEl = v.closest('.group') || v.parentElement;
                         if (cardEl && !cardEl.querySelector('.card-paused-overlay')) {
                             const overlay = document.createElement('div');
@@ -1124,7 +1029,6 @@
             });
         }
 
-        // --- FOCO E PALCO PRINCIPAL ---
         function setFocus(peerId, type) {
             if (!participants[peerId] || !participants[peerId].streams[type]) return;
 
@@ -1134,11 +1038,9 @@
             const stream = participants[peerId].streams[type];
             focusedVideo.srcObject = stream;
 
-            // Ajusta object-fit: câmera = cover (maximiza visibilidade), tela = contain (sem cortes)
             focusedVideo.classList.remove('camera-type', 'screen-type');
             focusedVideo.classList.add(type === 'camera' ? 'camera-type' : 'screen-type');
 
-            // Só ativa o áudio da main track se não for local
             focusedVideo.muted = participants[peerId].isLocal;
 
             playVideoSafe(focusedVideo, focusedVideoWrapper);
@@ -1147,16 +1049,14 @@
             focusedVideoWrapper.classList.remove('hidden');
 
             updateFocusedName();
-            renderCards(); // Atualiza borda de seleção
+            renderCards();
 
-            // Checa estado de pausa (Economia de recursos)
             if (participants[peerId].isLocal && type === 'screen' && focusedVideo.paused) {
                 focusedPausedOverlay.classList.remove('hidden');
             } else {
                 focusedPausedOverlay.classList.add('hidden');
             }
 
-            // Em mobile, ao focar, fecha a sidebar para ver a tela
             if (window.innerWidth < 768) {
                 isSidebarOpen = false;
                 updateSidebarUI();
@@ -1182,27 +1082,21 @@
             }
         }
 
-        // Economia de Recursos (Como Discord/Meet)
         function applyResourceSaving(peerId, type) {
-            // Pausa visualização no palco principal se for o focado
             if (focusedParticipantId === peerId && focusedStreamType === type) {
                 focusedVideo.pause();
                 focusedPausedOverlay.classList.remove('hidden');
                 focusedPausedOverlay.style.cursor = 'pointer';
-                // Clicar no overlay retoma
                 focusedPausedOverlay.onclick = () => {
                     focusedVideo.play().catch(() => {});
                     focusedPausedOverlay.classList.add('hidden');
-                    // Reagenda a pausa
                     clearTimeout(resourcePauseTimers[type]);
                     resourcePauseTimers[type] = setTimeout(() => applyResourceSaving(peerId, type), 15000);
                 };
             }
-            // Pausa também o card na sidebar
             pauseCardVideo(peerId, type);
         }
 
-        // --- TELA CHEIA E MOUSE IDLE ---
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 mainStageWrapper.requestFullscreen().catch(err => {
@@ -1226,7 +1120,6 @@
             }
         });
 
-        // Ocultar UI quando ocioso em fullscreen
         function startIdleTimer() {
             clearTimeout(idleTimer);
             mainStageWrapper.classList.remove('idle-hide');
@@ -1234,7 +1127,7 @@
             if (document.fullscreenElement) {
                 idleTimer = setTimeout(() => {
                     mainStageWrapper.classList.add('idle-hide');
-                }, 2500); // Oculta após 2.5s sem mexer o mouse
+                }, 2500);
             }
         }
 
@@ -1245,7 +1138,6 @@
             if (document.fullscreenElement) startIdleTimer();
         });
 
-        // --- SAÍDA ---
         function endSession() {
             stopMediaShare('camera');
             stopMediaShare('screen');
@@ -1265,7 +1157,6 @@
             screenRoom.classList.add('hidden');
             screenHome.classList.remove('hidden');
 
-            // Remove parametro da URL se existir para não reentrar auto
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
