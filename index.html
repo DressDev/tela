@@ -934,20 +934,29 @@
             if (type !== 'none') {
                 card.onclick = () => setFocus(id, type);
 
-                const vid = document.createElement('video');
-                vid.srcObject = peerData.streams[type];
-                vid.autoplay = true;
-                vid.playsInline = true;
-                vid.muted = true;
-                
-                vid.className = 'card-video' + (type === 'camera' ? ' camera-type' : '');
-                vid.dataset.peerId = id;
-                vid.dataset.streamType = type;
+                if (isFocused) {
+                    // Substitui a segunda transmissão do vídeo por um placeholder elegante
+                    const focusPlaceholder = document.createElement('div');
+                    focusPlaceholder.className = "absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95 z-0";
+                    focusPlaceholder.innerHTML = `
+                        <svg class="w-8 h-8 text-blue-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <span class="text-blue-400 text-[10px] font-bold uppercase tracking-wider">Em Foco</span>
+                    `;
+                    card.appendChild(focusPlaceholder);
+                } else {
+                    const vid = document.createElement('video');
+                    vid.srcObject = peerData.streams[type];
+                    vid.autoplay = true;
+                    vid.playsInline = true;
+                    vid.muted = true;
+                    // Classes mantidas para facilitar identificação visual futura se necessário
+                    vid.className = 'card-video' + (type === 'camera' ? ' camera-type' : '');
+                    vid.dataset.peerId = id;
+                    vid.dataset.streamType = type;
 
-                playVideoSafe(vid, card);
-                card.appendChild(vid);
-                
-                // NOTA: A pausa remota que existia aqui (que afetava quem estava apenas assistindo) foi removida.
+                    playVideoSafe(vid, card);
+                    card.appendChild(vid);
+                }
             } else {
                 const placeholder = document.createElement('div');
                 placeholder.className = "absolute inset-0 flex items-center justify-center bg-gray-900";
