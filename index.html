@@ -332,7 +332,7 @@
                         <span id="label-screen" class="text-[10px] sm:text-xs font-medium text-gray-400">Tela</span>
                     </button>
 
-                    <!-- Separador Principal (Entre Tela e próximos botões) -->
+                    <!-- Separador Principal -->
                     <div class="w-px h-10 bg-gray-800 mx-2"></div>
 
                     <!-- Botão Virar Câmera -->
@@ -348,7 +348,6 @@
                         <span class="text-[10px] sm:text-xs font-medium text-teal-400">Virar</span>
                     </button>
 
-                    <!-- Separador secundário: só aparece se o botão virar câmera aparecer -->
                     <div id="separator-flip" class="hidden w-px h-10 bg-gray-800 mx-2"></div>
 
                     <!-- Botão Sair -->
@@ -434,8 +433,9 @@
         let focusedStreamType = null;
         let isSidebarOpen = true;
         let idleTimer = null;
+        
+        // Mantemos APENAS o resource timer local para não prejudicar quem assiste
         let resourcePauseTimers = { camera: null, screen: null };
-        let remoteResourceTimers = {};
 
         const screenHome = document.getElementById('screen-home');
         const screenRoom = document.getElementById('screen-room');
@@ -479,7 +479,6 @@
             return res;
         }
 
-        // Modais e Alertas
         function showAlert(title, message) {
             document.getElementById('alert-title').innerText = title;
             document.getElementById('alert-message').innerText = message;
@@ -615,24 +614,16 @@
                         if (type === 'screen' || !focusedParticipantId || focusedStreamType !== 'screen') {
                             setFocus(call.peer, type);
                         }
-
-                        if (type === 'screen') {
-                            const timerKey = `${call.peer}_${type}`;
-                            clearTimeout(remoteResourceTimers[timerKey]);
-                            remoteResourceTimers[timerKey] = setTimeout(() => {
-                                applyResourceSaving(call.peer, type);
-                            }, 10000);
-                        }
+                        
+                        // NOTA: O código de economia que pausava remotamente (para quem assiste) foi removido daqui!
                     });
 
                     call.on('close', () => {
                         const type = call.metadata?.type || 'camera';
-                        clearTimeout(remoteResourceTimers[`${call.peer}_${type}`]);
                         removeRemoteStream(call.peer, type);
                     });
                     call.on('error', () => {
                         const type = call.metadata?.type || 'camera';
-                        clearTimeout(remoteResourceTimers[`${call.peer}_${type}`]);
                         removeRemoteStream(call.peer, type);
                     });
                 });
@@ -799,6 +790,7 @@
 
                 renderCards();
 
+                // Lógica de economia é ativada apenas e unicamente para a tela do usuário que emite o stream localmente
                 if (type === 'screen') {
                     clearTimeout(resourcePauseTimers.screen);
                     resourcePauseTimers.screen = setTimeout(() => {
@@ -947,21 +939,15 @@
                 vid.autoplay = true;
                 vid.playsInline = true;
                 vid.muted = true;
-                // Classes mantidas para facilitar identificação visual futura se necessário, mas as diretivas de crop no css foram retiradas
+                
                 vid.className = 'card-video' + (type === 'camera' ? ' camera-type' : '');
                 vid.dataset.peerId = id;
                 vid.dataset.streamType = type;
 
                 playVideoSafe(vid, card);
                 card.appendChild(vid);
-
-                if (!peerData.isLocal && type === 'screen') {
-                    const timerKey = `${id}_${type}`;
-                    clearTimeout(remoteResourceTimers[timerKey]);
-                    remoteResourceTimers[timerKey] = setTimeout(() => {
-                        pauseCardVideo(id, type);
-                    }, 10000);
-                }
+                
+                // NOTA: A pausa remota que existia aqui (que afetava quem estava apenas assistindo) foi removida.
             } else {
                 const placeholder = document.createElement('div');
                 placeholder.className = "absolute inset-0 flex items-center justify-center bg-gray-900";
@@ -1088,6 +1074,9 @@
         }
 
         function applyResourceSaving(peerId, type) {
+            // Segurança extra para garantir que só seja ativado para a mídia do próprio usuário
+            if (peerId !== myPeerId) return;
+
             if (focusedParticipantId === peerId && focusedStreamType === type) {
                 focusedVideo.pause();
                 focusedPausedOverlay.classList.remove('hidden');
