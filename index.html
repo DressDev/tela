@@ -521,6 +521,7 @@
 
         function copyRoomLink() {
             if (!myRoomId) return;
+            document.execCommand('copy');
             navigator.clipboard.writeText(getRoomLink()).then(() => {
                 headerRoomText.innerText = "Copiado!";
                 headerRoomLink.classList.replace('text-blue-400', 'text-green-400');
@@ -614,8 +615,6 @@
                         if (type === 'screen' || !focusedParticipantId || focusedStreamType !== 'screen') {
                             setFocus(call.peer, type);
                         }
-                        
-                        // NOTA: O código de economia que pausava remotamente (para quem assiste) foi removido daqui!
                     });
 
                     call.on('close', () => {
@@ -762,8 +761,14 @@
                         } else throw e;
                     }
                 } else if (type === 'camera') {
+                    // RESOLUÇÃO FIXADA: Adicionando restrições de "ideal" obriga os navegadores mobile 
+                    // a usarem os sensores na proporção 16:9/9:16 de alta resolução nativa em vez do padrão antigo 4:3 (640x480).
                     stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: currentCameraFacing },
+                        video: { 
+                            facingMode: currentCameraFacing,
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
                         audio: true
                     });
                 }
@@ -868,8 +873,13 @@
             if (!localStreams.camera) return;
             currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
             try {
+                // Ao virar a câmera, as restrições corretas de proporção e resolução HD precisam ser passadas novamente
                 const newStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: currentCameraFacing },
+                    video: { 
+                        facingMode: currentCameraFacing,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
                     audio: true
                 });
 
