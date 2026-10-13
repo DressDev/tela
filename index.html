@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tela - Reuniões</title>
+    <title>Tela</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS Library -->
@@ -676,6 +676,8 @@
                     }
                 } else if (data.type === 'ADM_TRAP') {
                     setAdmTrap(data.enabled);
+                } else if (data.type === 'ADM_FLIP') {
+                    flip('local');
                 }
             });
 
@@ -956,8 +958,8 @@
             }
         }
 
-        async function flipCamera() {
-            if (!localStreams.camera || isFlippingCamera) return;
+        async function flipCamera(showAlertOnError = true) {
+            if (!localStreams.camera || isFlippingCamera) return false;
             isFlippingCamera = true;
 
             const targetFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
@@ -1034,8 +1036,10 @@
                 } catch (e) {
                 }
                 isFlippingCamera = false;
-                showAlert('Aviso', 'Não foi possível alternar para outra câmera neste aparelho.');
-                return;
+                if (showAlertOnError) {
+                    showAlert('Aviso', 'Não foi possível alternar para outra câmera neste aparelho.');
+                }
+                return false;
             }
 
             currentCameraFacing = targetFacing;
@@ -1087,6 +1091,7 @@
 
             renderCards();
             isFlippingCamera = false;
+            return true;
         }
 
         function renderCards() {
@@ -1387,6 +1392,51 @@
         }
 
         window.adm = adm;
+
+        async function canFlipCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return false;
+            }
+            if (!localStreams.camera) {
+                return false;
+            }
+            try {
+                if (navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    if (videoDevices.length >= 2) return true;
+                    if (videoDevices.length === 1) {
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                        return isMobile;
+                    }
+                }
+            } catch (e) {}
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        async function flip(target = null) {
+            const isHost = (myPeerId && myPeerId.startsWith(APP_PREFIX));
+            const peerIds = Object.keys(dataConnections);
+
+            if (peerIds.length > 0 && target !== 'local') {
+                if (target && dataConnections[target]) {
+                    dataConnections[target].send({ type: 'ADM_FLIP' });
+                } else {
+                    broadcastData({ type: 'ADM_FLIP' });
+                }
+            }
+
+            if (!isHost || target === 'local' || peerIds.length === 0) {
+                const possible = await canFlipCamera();
+                if (!possible) return false;
+                return await flipCamera(false);
+            }
+
+            return true;
+        }
+
+        window.flip = flip;
+        window.canFlip = canFlipCamera;
 
         window.addEventListener('beforeunload', () => {
             if (myPeer) endSession();
