@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dress Tela - Reuniões</title>
+    <title>Tela</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS Library -->
@@ -56,8 +56,9 @@
             opacity: 0.85;
             transition: opacity 0.2s;
         }
-        
-        .card-video:hover, .group:hover .card-video {
+
+        .card-video:hover,
+        .group:hover .card-video {
             opacity: 1;
         }
 
@@ -72,7 +73,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(37,99,235,0.92);
+            background: rgba(37, 99, 235, 0.92);
             color: #fff;
             border: none;
             border-radius: 8px;
@@ -85,16 +86,19 @@
             cursor: pointer;
             z-index: 30;
             backdrop-filter: blur(4px);
-            box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
             transition: background 0.15s;
         }
-        .play-overlay-btn:hover { background: rgba(37,99,235,1); }
+
+        .play-overlay-btn:hover {
+            background: rgba(37, 99, 235, 1);
+        }
 
         /* Pausa de recurso nos cards */
         .card-paused-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.75);
+            background: rgba(0, 0, 0, 0.75);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -250,7 +254,8 @@
                     class="flex-1 min-h-0 min-w-0 relative flex items-center justify-center bg-black overflow-hidden fullscreen-container">
 
                     <!-- Mensagem Vazia / Dica -->
-                    <div id="empty-stage-msg" class="text-center text-gray-500 flex flex-col items-center select-none absolute">
+                    <div id="empty-stage-msg"
+                        class="text-center text-gray-500 flex flex-col items-center select-none absolute">
                         <svg class="w-16 h-16 text-gray-800 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
@@ -342,7 +347,8 @@
                             class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-800 hover:bg-teal-600 border border-gray-700 hover:border-teal-500 flex items-center justify-center transition-all shadow-lg text-gray-400 hover:text-white">
                             <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
                             </svg>
                         </div>
                         <span class="text-[10px] sm:text-xs font-medium text-teal-400">Virar</span>
@@ -434,7 +440,7 @@
         let focusedStreamType = null;
         let isSidebarOpen = true;
         let idleTimer = null;
-        
+
         // Mantemos APENAS o resource timer local para não prejudicar quem assiste
         let resourcePauseTimers = { camera: null, screen: null };
 
@@ -766,7 +772,7 @@
                     // a usarem os sensores na proporção 16:9/9:16 de alta resolução nativa em vez do padrão antigo 4:3 (640x480).
                     try {
                         stream = await navigator.mediaDevices.getUserMedia({
-                            video: { 
+                            video: {
                                 facingMode: { ideal: currentCameraFacing },
                                 width: { ideal: 1280 },
                                 height: { ideal: 720 }
@@ -831,7 +837,7 @@
                     const videoDevices = devices.filter(d => d.kind === 'videoinput');
                     hasMultipleCameras = videoDevices.length > 1;
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             const btnFlip = document.getElementById('btn-flip-camera');
@@ -969,7 +975,7 @@
                             });
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             // 4. Se falhou totalmente, restaura a câmera anterior para a imagem não ficar preta
@@ -1016,7 +1022,7 @@
                             videoSender.replaceTrack(newVideoTrack);
                             replaced = true;
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
 
                 if (!replaced) {
@@ -1131,7 +1137,7 @@
                 btn.className = 'play-overlay-btn';
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    videoEl.play().catch(() => {});
+                    videoEl.play().catch(() => { });
                     btn.remove();
                 };
                 containerEl.appendChild(btn);
@@ -1154,7 +1160,7 @@
                             `;
                             overlay.onclick = (e) => {
                                 e.stopPropagation();
-                                v.play().catch(() => {});
+                                v.play().catch(() => { });
                                 overlay.remove();
                             };
                             cardEl.appendChild(overlay);
@@ -1226,7 +1232,7 @@
                 focusedPausedOverlay.classList.remove('hidden');
                 focusedPausedOverlay.style.cursor = 'pointer';
                 focusedPausedOverlay.onclick = () => {
-                    focusedVideo.play().catch(() => {});
+                    focusedVideo.play().catch(() => { });
                     focusedPausedOverlay.classList.add('hidden');
                     clearTimeout(resourcePauseTimers[type]);
                     resourcePauseTimers[type] = setTimeout(() => applyResourceSaving(peerId, type), 15000);
