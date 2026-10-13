@@ -427,6 +427,7 @@
         let participants = {};
         let localStreams = { camera: null, screen: null };
         let currentCameraFacing = 'user';
+        let isFlippingCamera = false;
         let dataConnections = {};
         let outgoingCalls = {};
         let focusedParticipantId = null;
@@ -763,14 +764,22 @@
                 } else if (type === 'camera') {
                     // RESOLUÇÃO FIXADA: Adicionando restrições de "ideal" obriga os navegadores mobile 
                     // a usarem os sensores na proporção 16:9/9:16 de alta resolução nativa em vez do padrão antigo 4:3 (640x480).
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            facingMode: currentCameraFacing,
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: true
-                    });
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { 
+                                facingMode: { ideal: currentCameraFacing },
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            },
+                            audio: true
+                        });
+                    } catch (e) {
+                        // Fallback com restrições mais flexíveis para modelos de celulares de entrada
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: currentCameraFacing },
+                            audio: true
+                        });
+                    }
                 }
 
                 localStreams[type] = stream;
@@ -786,11 +795,9 @@
 
                 updateMediaButtonUI(type, true);
 
-                // Mostrando Botão de Virar Câmera e o Separador
+                // Mostrando Botão de Virar Câmera e o Separador se suportado
                 if (type === 'camera') {
-                    document.getElementById('btn-flip-camera').classList.remove('hidden');
-                    document.getElementById('btn-flip-camera').classList.add('flex');
-                    document.getElementById('separator-flip').classList.remove('hidden');
+                    checkAndShowFlipButton();
                 }
 
                 renderCards();
@@ -808,9 +815,36 @@
                 }
 
             } catch (err) {
-                if (err.name !== "NotAllowedError" && err.name !== "NotFoundError") {
+                if (err.name === "NotSupportedError" || (err.message && err.message.toLowerCase().includes("not supported"))) {
+                    showAlert("Recurso Indisponível no Celular", "Navegadores móveis não permitem compartilhar a tela por restrições de segurança do sistema operacional. Acesse por um computador para compartilhar tela ou use a câmera no celular.");
+                } else if (err.name !== "NotAllowedError" && err.name !== "NotFoundError") {
                     showAlert("Erro", err.message || "A captura falhou.");
                 }
+            }
+        }
+
+        async function checkAndShowFlipButton() {
+            let hasMultipleCameras = false;
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    hasMultipleCameras = videoDevices.length > 1;
+                }
+            } catch (e) {}
+
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const btnFlip = document.getElementById('btn-flip-camera');
+            const sepFlip = document.getElementById('separator-flip');
+
+            if (hasMultipleCameras || isMobile) {
+                btnFlip.classList.remove('hidden');
+                btnFlip.classList.add('flex');
+                sepFlip.classList.remove('hidden');
+            } else {
+                btnFlip.classList.add('hidden');
+                btnFlip.classList.remove('flex');
+                sepFlip.classList.add('hidden');
             }
         }
 
@@ -834,6 +868,7 @@
                 btnFlip.classList.add('hidden');
                 btnFlip.classList.remove('flex');
                 document.getElementById('separator-flip').classList.add('hidden');
+                currentCameraFacing = 'user';
             }
 
             Object.keys(outgoingCalls).forEach(key => {
@@ -870,47 +905,137 @@
         }
 
         async function flipCamera() {
-            if (!localStreams.camera) return;
-            currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
-            try {
-                // Ao virar a câmera, as restrições corretas de proporção e resolução HD precisam ser passadas novamente
-                const newStream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: currentCameraFacing,
+            if (!localStreams.camera || isFlippingCamera) return;
+            isFlippingCamera = true;
+
+            const targetFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
+            const oldStream = localStreams.camera;
+            const existingAudioTrack = oldStream.getAudioTracks()[0];
+            const oldVideoTrack = oldStream.getVideoTracks()[0];
+
+            // 1. FUNDAMENTAL: Parar o vídeo atual antes de requisitar a nova câmera para liberar a trava de hardware no celular
+            if (oldVideoTrack) {
+                oldVideoTrack.stop();
+            }
+
+            let newStream = null;
+
+            // 2. Tentativas graduais de restrições (HD -> Suave -> Exato)
+            const attempts = [
+                {
+                    video: {
+                        facingMode: { ideal: targetFacing },
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
-                    audio: true
-                });
+                    audio: false
+                },
+                {
+                    video: { facingMode: targetFacing },
+                    audio: false
+                },
+                {
+                    video: { facingMode: { exact: targetFacing } },
+                    audio: false
+                }
+            ];
 
-                localStreams.camera.getTracks().forEach(t => t.stop());
+            for (const constraints of attempts) {
+                try {
+                    newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    if (newStream && newStream.getVideoTracks().length > 0) break;
+                } catch (e) {
+                    // Tenta a próxima restrição
+                }
+            }
 
-                localStreams.camera = newStream;
+            // 3. Fallback inteligente via enumerateDevices caso o facingMode não seja mapeado corretamente pela fabricante
+            if (!newStream && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    if (videoDevices.length > 1) {
+                        const targetDevice = videoDevices.find(d => {
+                            const lbl = (d.label || '').toLowerCase();
+                            return targetFacing === 'environment'
+                                ? (lbl.includes('back') || lbl.includes('rear') || lbl.includes('traseir') || lbl.includes('environment') || lbl.includes('0'))
+                                : (lbl.includes('front') || lbl.includes('user') || lbl.includes('frontal') || lbl.includes('1'));
+                        }) || videoDevices.find(d => d.deviceId !== oldVideoTrack?.getSettings()?.deviceId);
+
+                        if (targetDevice) {
+                            newStream = await navigator.mediaDevices.getUserMedia({
+                                video: { deviceId: { exact: targetDevice.deviceId } },
+                                audio: false
+                            });
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Se falhou totalmente, restaura a câmera anterior para a imagem não ficar preta
+            if (!newStream) {
+                try {
+                    newStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: currentCameraFacing },
+                        audio: false
+                    });
+                } catch (e) {
+                    console.error("Falha ao restaurar câmera anterior:", e);
+                }
+                isFlippingCamera = false;
+                showAlert('Aviso', 'Não foi possível alternar para outra câmera neste aparelho.');
+                return;
+            }
+
+            currentCameraFacing = targetFacing;
+            const newVideoTrack = newStream.getVideoTracks()[0];
+
+            // 5. Preserva a faixa de áudio original sem reinicializar ou interromper o microfone
+            if (existingAudioTrack && existingAudioTrack.readyState === 'live') {
+                newStream.addTrack(existingAudioTrack);
+            }
+
+            localStreams.camera = newStream;
+            if (participants[myPeerId]) {
                 participants[myPeerId].streams.camera = newStream;
+            }
 
-                Object.keys(dataConnections).forEach(peerId => {
-                    const key = `${peerId}_camera`;
-                    if (outgoingCalls[key]) {
-                        outgoingCalls[key].close();
+            newVideoTrack.onended = () => stopMediaShare('camera');
+
+            // 6. Atualização fluida via WebRTC RTCRtpSender.replaceTrack() sem derrubar a chamada para os outros
+            Object.keys(dataConnections).forEach(peerId => {
+                const key = `${peerId}_camera`;
+                const call = outgoingCalls[key];
+                let replaced = false;
+
+                if (call && call.peerConnection) {
+                    try {
+                        const senders = call.peerConnection.getSenders();
+                        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+                        if (videoSender) {
+                            videoSender.replaceTrack(newVideoTrack);
+                            replaced = true;
+                        }
+                    } catch (e) {}
+                }
+
+                if (!replaced) {
+                    if (call) {
+                        call.close();
                         delete outgoingCalls[key];
                     }
                     sendMediaToPeer(peerId, newStream, 'camera');
-                });
-
-                if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
-                    focusedVideo.srcObject = newStream;
-                    playVideoSafe(focusedVideo, focusedVideoWrapper);
                 }
+            });
 
-                newStream.getTracks().forEach(track => {
-                    track.onended = () => stopMediaShare('camera');
-                });
-
-                renderCards();
-            } catch (err) {
-                currentCameraFacing = currentCameraFacing === 'user' ? 'environment' : 'user';
-                showAlert('Erro', 'Não foi possível trocar a câmera.');
+            // 7. Atualiza o vídeo focado e os cards locais
+            if (focusedParticipantId === myPeerId && focusedStreamType === 'camera') {
+                focusedVideo.srcObject = newStream;
+                playVideoSafe(focusedVideo, focusedVideoWrapper);
             }
+
+            renderCards();
+            isFlippingCamera = false;
         }
 
         function renderCards() {
